@@ -21,7 +21,7 @@ func main() {
 		fmt.Printf("Something went wrong")
 		return
 	}
-	u, _ := url.Parse("http://localhost:3000")
+	u, _ := url.Parse("https://scrumctl.dev")
 	c := &scrumctl.Client{
 		BaseURL:    u,
 		UserAgent:  "",
