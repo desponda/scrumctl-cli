@@ -5,74 +5,29 @@ import (
 	"fmt"
 	"github.com/desponda/scrumctl-cli/scrumctl"
 	"github.com/manifoldco/promptui"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 )
 
 func main() {
-	prompt := promptui.Select{
-		Label: "Choose an option",
-		Items: []string{"Create a session", "Join a session"},
+	prompt := promptui.Prompt{
+		Label: "Username",
 	}
-	_, result, err := prompt.Run()
-	if err != nil {
-		fmt.Printf("Something went wrong")
-		return
-	}
-	u, _ := url.Parse("https://scrumctl.dev")
-	c := &scrumctl.Client{
-		BaseURL:    u,
-		UserAgent:  "",
-		HttpClient: http.DefaultClient,
-	}
+	un, _ := prompt.Run()
 
-	promptName := promptui.Prompt{
-		Label: "Name",
-	}
+	host, _ := url.Parse("https://scrumctl.dev")
+	c := scrumctl.NewClient(host)
 	creator := false
 	var s scrumctl.Session
-	un, _ := promptName.Run()
-	if result == "Create a session" {
-		fmt.Printf("Creating a session...\n")
-		s, _ = c.CreateSession(un)
-		fmt.Printf("Created session %v\n", s.SessionId)
-		creator = true
-	} else {
-		promptName = promptui.Prompt{
-			Label: "Session ID",
-		}
-		sessionId, _ := promptName.Run()
-		s = c.JoinSession(sessionId, un)
-		fmt.Printf("Joined session %v\n", s.SessionId)
-	}
+	s, creator = initializeSession(c, un)
+
 	for {
-		var story scrumctl.Story
-		if creator {
-			promptName = promptui.Prompt{
-				Label: "Story ID",
-			}
-			sn, _ := promptName.Run()
-			story, _ = c.CreateStory(sn, s.SessionId)
-		} else {
-			story = *s.Stories[s.LatestStory]
-		}
-		validate := func(input string) error {
-			_, err := strconv.ParseInt(input, 10, 64)
-			if err != nil {
-				return errors.New("invalid number")
-			}
-			return nil
-		}
-		storyPrompt := fmt.Sprintf("Vote on story %q", story.Name)
-		promptName = promptui.Prompt{
-			Label:    storyPrompt,
-			Validate: validate,
-		}
-		r, _ := promptName.Run()
-		vote, _ := strconv.ParseInt(r, 10, 64)
+
+		story := getActiveStory(c, creator, s)
+		vote, _ := getVote(&story)
 		_ = c.CastVote(s.SessionId, story.Name, un, int(vote))
+
 		s, _ = c.FindSession(s.SessionId)
 		for !allUsersVoted(s) {
 			time.Sleep(3 * time.Second)
@@ -84,6 +39,62 @@ func main() {
 			fmt.Printf("%v: %v\n", u, v)
 		}
 	}
+}
+
+func getVote(story *scrumctl.Story) (int64, error) {
+	validate := func(input string) error {
+		_, err := strconv.ParseInt(input, 10, 64)
+		if err != nil {
+			return errors.New("invalid number")
+		}
+		return nil
+	}
+	storyPrompt := fmt.Sprintf("Vote on story %q", story.Name)
+	prompt := promptui.Prompt{
+		Label:    storyPrompt,
+		Validate: validate,
+	}
+	r, _ := prompt.Run()
+	return strconv.ParseInt(r, 10, 64)
+}
+
+func getActiveStory(c *scrumctl.Client, creator bool, s scrumctl.Session) (story scrumctl.Story) {
+	if creator {
+		prompt := promptui.Prompt{
+			Label: "Story ID",
+		}
+		sn, _ := prompt.Run()
+		story, _ = c.CreateStory(sn, s.SessionId)
+	} else {
+		story = *s.Stories[s.LatestStory]
+	}
+	return story
+}
+
+func initializeSession(c *scrumctl.Client, un string) (s scrumctl.Session, creator bool) {
+	promptSelect := promptui.Select{
+		Label: "Choose an option",
+		Items: []string{"Create a session", "Join a session"},
+	}
+	_, result, err := promptSelect.Run()
+	if err != nil {
+		fmt.Printf("Something went wrong")
+		return
+	}
+	if result == "Create a session" {
+		fmt.Printf("Creating a session...\n")
+		s, _ = c.CreateSession(un)
+		fmt.Printf("Created session %v\n", s.SessionId)
+		creator = true
+	} else {
+		prompt := promptui.Prompt{
+			Label: "Session ID",
+		}
+		sessionId, _ := prompt.Run()
+		s = c.JoinSession(sessionId, un)
+		fmt.Printf("Joined session %v\n", s.SessionId)
+	}
+	return s, creator
 }
 
 func allUsersVoted(s scrumctl.Session) bool {

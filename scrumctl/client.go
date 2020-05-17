@@ -103,6 +103,14 @@ func (c *Client) JoinSession(id string, un string) Session {
 
 }
 
+func NewClient(host *url.URL) *Client {
+	return &Client{
+		BaseURL:    host,
+		UserAgent:  "",
+		HttpClient: http.DefaultClient,
+	}
+}
+
 type createSessionRequest struct {
 	UserName string `json:"userName"`
 }
