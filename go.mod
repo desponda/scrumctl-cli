@@ -1,4 +1,4 @@
-module scrumctl-cli
+module github.com/desponda/scrumctl-cli
 
 go 1.14
 
