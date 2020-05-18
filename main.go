@@ -38,7 +38,24 @@ func main() {
 		for u, v := range s.Stories[s.LatestStory].Votes {
 			fmt.Printf("%v: %v\n", u, v)
 		}
+
+		if creator {
+			fmt.Printf("Vote on a new story or 'quit' to end session")
+		} else {
+			for !newActiveStory(s, story) {
+				fmt.Printf("Waiting for next story...")
+				s, _ = c.FindSession(s.SessionId)
+				time.Sleep(3 * time.Second)
+			}
+		}
 	}
+}
+
+func newActiveStory(s scrumctl.Session, story scrumctl.Story) bool {
+	if story.Name == s.LatestStory {
+		return false
+	}
+	return true
 }
 
 func getVote(story *scrumctl.Story) (int64, error) {
