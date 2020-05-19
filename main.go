@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/desponda/scrumctl-cli/scrumctl"
+	"github.com/desponda/scrumctl-client"
 	"github.com/manifoldco/promptui"
 	"net/url"
 	"strconv"
